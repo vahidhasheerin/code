@@ -1,0 +1,87 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1239.v71b_b_a_124a_725">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2114.v2654ca_721309"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2114.v2654ca_721309">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description>testing CICD</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.35.0">
+      <projectUrl>git@github.com:vahidhasheerin/code.git/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers>
+        <com.cloudbees.jenkins.GitHubPushTrigger plugin="github@1.35.0">
+          <spec></spec>
+        </com.cloudbees.jenkins.GitHubPushTrigger>
+      </triggers>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2801.vf82a_b_b_e3e8a_5">
+    <script>pipeline {
+    agent {label &apos;osm-cicd&apos;}
+    environment {
+    DOCKERHUB_CREDENTIALS = credentials(&apos;69ec0b68-5272-462b-bd72-6cee89a6674c&apos;)
+    }
+    stages {
+        stage(&apos;checkout&apos;) {
+            steps {
+              checkout([$class: &apos;GitSCM&apos;, 
+                branches: [[name: &apos;*/main&apos;]],
+                doGenerateSubmoduleConfigurations: false,
+                extensions: [[$class: &apos;CleanCheckout&apos;]],
+                submoduleCfg: [], 
+                userRemoteConfigs: [[url: &apos;https://github.com/vahidhasheerin/code.git&apos;]]])
+                
+              sh &quot;ls -ltr&quot;
+          }
+        }
+        stage(&apos;static-analysis&apos;) {
+            steps {
+                sh &quot;/usr/bin/python3 -m pip install --upgrade pip&quot;
+                sh &quot; pip3 install pylint&quot;
+                //sh &quot;pylint /home/administrator/Jenkins/workspace/test_PIPELINE/browsertimer.py&quot;
+                
+                echo &quot;static analysis done&quot;
+            }
+        }
+        stage(&apos;unit-testing&apos;) {
+            steps {
+                echo &quot;unit testing to be done&quot;
+            }
+        }
+        stage(&apos;build&apos;) {
+            steps {
+               sh &quot;docker build -t timer .&quot;
+          }
+        }
+        stage(&apos;push&apos;) {
+            steps {
+               sh &quot;docker images|grep timer&quot;
+               sh &quot;echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin&quot;
+               sh &quot;docker tag timer:latest vahidha22/timer:v1&quot;
+               sh &quot;docker push vahidha22/timer:v1&quot;
+          }
+        }
+         
+      
+    }
+    post {
+        success {
+            echo &apos;Running  CD job pipeline&apos;
+            build job: &apos;test_PIPELINE_CD&apos;, parameters: []
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
