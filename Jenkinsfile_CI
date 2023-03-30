@@ -1,0 +1,55 @@
+pipeline {
+    agent {label 'osm-cicd'}
+    environment {
+    DOCKERHUB_CREDENTIALS = credentials('69ec0b68-5272-462b-bd72-6cee89a6674c')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+              checkout([$class: 'GitSCM', 
+                branches: [[name: '*/main']],
+                doGenerateSubmoduleConfigurations: false,
+                extensions: [[$class: 'CleanCheckout']],
+                submoduleCfg: [], 
+                userRemoteConfigs: [[url: 'https://github.com/vahidhasheerin/code.git']]])
+                
+              sh "ls -ltr"
+          }
+        }
+        stage('static-analysis') {
+            steps {
+                sh "/usr/bin/python3 -m pip install --upgrade pip"
+                sh " pip3 install pylint"
+                //sh "pylint /home/administrator/Jenkins/workspace/test_PIPELINE/browsertimer.py"
+                
+                echo "static analysis done"
+            }
+        }
+        stage('unit-testing') {
+            steps {
+                echo "unit testing to be done"
+            }
+        }
+        stage('build') {
+            steps {
+               sh "docker build -t timer ."
+          }
+        }
+        stage('push') {
+            steps {
+               sh "docker images|grep timer"
+               sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
+               sh "docker tag timer:latest vahidha22/timer:v1"
+               sh "docker push vahidha22/timer:v1"
+          }
+        }
+         
+      
+    }
+    post {
+        success {
+            echo 'Running  CD job pipeline'
+            build job: 'test_PIPELINE_CD', parameters: []
+        }
+    }
+}
